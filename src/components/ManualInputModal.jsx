@@ -117,14 +117,14 @@ function ManualInputModal({ user, editingTransaction, setIsManualModalOpen }) {
 
           <div className="relative">
             <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 font-bold">Rp</span>
-            <input 
-              name="amount" 
-              required 
-              type="text" 
+            <input
+              name="amount"
+              required
+              type="text"
               value={displayAmount}
               onChange={handleAmountChange}
-              placeholder="Jumlah Total" 
-              className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 outline-none focus:ring-2 focus:ring-blue-600/50" 
+              placeholder="Jumlah Total"
+              className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-white/10 rounded-2xl py-3 pl-12 pr-4 text-sm text-slate-800 dark:text-slate-100 placeholder:text-slate-400 dark:text-slate-500 outline-none focus:ring-2 focus:ring-blue-600/50"
             />
           </div>
 

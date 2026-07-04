@@ -24,7 +24,7 @@ function ScanModal({ user, setIsScanModalOpen, onScanSuccess }) {
 
         const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({
-          model: "gemini-2.5-flash",
+          model: "gemini-1.5-flash",
           generationConfig: {
             responseMimeType: "application/json"
           }
@@ -69,7 +69,15 @@ Contoh JSON Tidak Valid / Bukan Struk:
         setIsScanning(false);
 
       } catch (error) {
-        setErrorMsg(`Gagal memproses nota: ${error.message}`);
+        let displayError = "Terjadi kesalahan saat memproses nota.";
+        if (error.message.includes('429') || error.message.includes('Quota') || error.message.includes('rate-limit')) {
+           displayError = "Batas penggunaan AI (Quota) harian Anda telah habis atau terlalu banyak permintaan (Limit 15 RPM). Silakan tunggu sebentar atau periksa API Key Anda.";
+        } else if (error.message.includes('API key not valid')) {
+           displayError = "API Key tidak valid. Periksa konfigurasi VITE_GEMINI_API_KEY.";
+        } else {
+           displayError = error.message;
+        }
+        setErrorMsg(`Gagal: ${displayError}`);
         setIsScanning(false);
       }
     };
