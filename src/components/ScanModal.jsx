@@ -6,14 +6,16 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-function ScanModal({ setIsScanModalOpen }) {
+function ScanModal({ user, setIsScanModalOpen, onScanSuccess }) {
   const [isScanning, setIsScanning] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   const handleScanNota = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     setIsScanning(true);
+    setErrorMsg('');
 
     const reader = new FileReader();
     reader.onloadend = async () => {
@@ -52,27 +54,22 @@ Contoh JSON Tidak Valid / Bukan Struk:
 
         const result = await model.generateContent([prompt, imagePart]);
         const responseText = result.response.text();
+        
         const data = JSON.parse(responseText);
 
         if (data.isReceipt === false) {
           throw new Error("Gambar yang diunggah tidak terdeteksi sebagai struk belanja valid.");
         }
 
-        await addDoc(collection(db, "transactions"), {
-          n: data.item || 'Transaksi AI Scan',
-          c: data.category || 'Lifestyle',
-          b: 'BCA',
-          a: `-Rp ${parseInt(data.amount || 0).toLocaleString('id-ID')}`,
-          sc: 'text-rose-500',
-          createdAt: new Date().toISOString()
-        });
-
-        setIsScanModalOpen(false);
+        if (onScanSuccess) {
+          onScanSuccess(data);
+        } else {
+          setIsScanModalOpen(false);
+        }
         setIsScanning(false);
-        alert(`Berhasil! Nota diekstrak murni oleh AI: ${data.item} - Rp ${parseInt(data.amount).toLocaleString('id-ID')}`);
 
       } catch (error) {
-        alert(`Gagal memproses nota: ${error.message}`);
+        setErrorMsg(`Gagal memproses nota: ${error.message}`);
         setIsScanning(false);
       }
     };
@@ -81,30 +78,36 @@ Contoh JSON Tidak Valid / Bukan Struk:
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 md:p-4">
-      <div className="bg-white border border-slate-100 w-full max-w-md rounded-t-[32px] md:rounded-[32px] p-6 md:p-8 text-center text-slate-800 shadow-2xl animate-in slide-in-from-bottom md:slide-in-from-bottom-0 md:zoom-in duration-300">
+    <div className="fixed inset-0 z-[100] flex items-end md:items-center justify-center bg-slate-900/50 backdrop-blur-sm p-0 md:p-4 animate-fade-in">
+      <div className="bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-white/5 w-full max-w-md rounded-t-[32px] md:rounded-[32px] p-6 md:p-8 text-center text-slate-800 dark:text-slate-100 shadow-2xl animate-fade-in-up">
         <div className="flex justify-between items-center mb-6">
-          <h3 className="text-lg md:text-xl font-bold uppercase tracking-tight">Ambil Foto Nota</h3>
-          <button onClick={() => setIsScanModalOpen(false)} disabled={isScanning} className="text-slate-400 hover:text-slate-600 p-2"><X size={24} /></button>
+          <h3 className="text-lg md:text-xl font-bold capitalize tracking-tight">Ambil Foto Nota</h3>
+          <button onClick={() => setIsScanModalOpen(false)} disabled={isScanning} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:text-slate-300 p-2"><X size={24} /></button>
         </div>
+
+        {errorMsg && (
+          <div className="bg-rose-50 text-rose-600 p-4 rounded-2xl text-sm mb-4 border border-rose-100 text-left font-medium">
+            {errorMsg}
+          </div>
+        )}
 
         {isScanning ? (
           <div className="border-2 border-dashed border-blue-500 rounded-[32px] p-10 md:p-12 flex flex-col items-center gap-4 bg-blue-50 my-4">
             <RefreshCw className="animate-spin text-blue-600" size={40} />
-            <p className="font-bold text-blue-600 uppercase tracking-widest text-xs animate-pulse">Memproses AI...</p>
+            <p className="font-bold text-blue-600 capitalize tracking-widest text-xs animate-pulse">Memproses AI...</p>
           </div>
         ) : (
           <div className="space-y-4 mb-4">
-            <label className="border border-slate-200 rounded-2xl p-5 md:p-6 flex flex-col items-center gap-3 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer">
+            <label className="border border-slate-200 dark:border-white/10 rounded-2xl p-5 md:p-6 flex flex-col items-center gap-3 bg-slate-50 dark:bg-slate-900/50 hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer">
               <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleScanNota} />
               <Camera size={32} className="text-blue-600" />
-              <p className="font-bold text-slate-700 uppercase tracking-widest text-[10px] md:text-xs">Ambil Foto Baru</p>
+              <p className="font-bold text-slate-700 dark:text-slate-200 capitalize tracking-widest text-[10px] md:text-xs">Ambil Foto Baru</p>
             </label>
 
-            <label className="border border-slate-200 rounded-2xl p-5 md:p-6 flex flex-col items-center gap-3 bg-slate-50 hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer">
+            <label className="border border-slate-200 dark:border-white/10 rounded-2xl p-5 md:p-6 flex flex-col items-center gap-3 bg-slate-50 dark:bg-slate-900/50 hover:bg-blue-50 hover:border-blue-200 transition-all cursor-pointer">
               <input type="file" accept="image/*" className="hidden" onChange={handleScanNota} />
               <ImageIcon size={32} className="text-sky-500" />
-              <p className="font-bold text-slate-700 uppercase tracking-widest text-[10px] md:text-xs">Impor Dari Galeri</p>
+              <p className="font-bold text-slate-700 dark:text-slate-200 capitalize tracking-widest text-[10px] md:text-xs">Impor Dari Galeri</p>
             </label>
           </div>
         )}
