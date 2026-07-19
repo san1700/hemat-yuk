@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { 
   ShieldCheck, User, Wallet, Lock, Cloud, HelpCircle, LogOut, ChevronRight, 
-  X, CheckCircle2, CreditCard, Loader2, Phone, Mail, ChevronDown, ChevronUp 
+  X, CheckCircle2, CreditCard, Loader2, Phone, Mail, ChevronDown, ChevronUp, Moon
 } from 'lucide-react';
 import { signOut, updateProfile, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../firebase';
 
-function ProfileView({ user }) {
+function ProfileView({ user, theme, setTheme }) {
   const [activeModal, setActiveModal] = useState(null); 
 
   const displayName = user?.displayName || user?.email?.split('@')[0] || 'User';
@@ -131,6 +131,23 @@ function ProfileView({ user }) {
         <div>
           <h3 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 capitalize tracking-[0.2em] mb-3 ml-4">Sistem</h3>
           <div className="bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-white/5 rounded-[32px] overflow-hidden shadow-sm divide-y divide-slate-50 dark:divide-white/5">
+            <button 
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              className="w-full flex items-center justify-between p-4 hover:bg-slate-50 dark:bg-slate-900/50 transition-all text-left group"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-2xl flex items-center justify-center transition-colors bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600">
+                  <Moon size={20} />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-800 dark:text-slate-100">Mode Gelap</h4>
+                  <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 capitalize tracking-widest mt-0.5">Ubah Tampilan Aplikasi</p>
+                </div>
+              </div>
+              <div className={`w-12 h-6 rounded-full relative transition-colors ${theme === 'dark' ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                <div className={`w-5 h-5 bg-white rounded-full absolute top-0.5 transition-transform ${theme === 'dark' ? 'translate-x-6' : 'translate-x-0.5'}`}></div>
+              </div>
+            </button>
             <MenuItem icon={HelpCircle} title="Bantuan & Dukungan" subtitle="FAQ dan Customer Service" onClick={() => setActiveModal('support')} />
             <MenuItem icon={LogOut} title="Keluar dari Aplikasi" isDestructive={true} onClick={handleLogout} />
           </div>

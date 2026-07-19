@@ -24,9 +24,6 @@ function Header({ user, activeMenu, setIsMobileMenuOpen, setIsManualModalOpen, s
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white shadow-sm"><span className="text-lg font-bold font-serif">H</span></div>
           <h1 className="text-lg font-bold text-slate-900 dark:text-white leading-none">HematYuk</h1>
         </div>
-        <button onClick={() => setIsMobileMenuOpen(true)} className="p-2 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:bg-slate-900/50 rounded-lg">
-          <Menu size={24} />
-        </button>
       </div>
 
       {/* HEADER UTAMA (Desktop & Tablet) */}

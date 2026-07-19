@@ -14,6 +14,7 @@ import TransactionsView from './components/TransactionsView';
 import AIAnalysisView from './components/AIAnalysisView';
 import SavingsView from './components/SavingsView';
 import ProfileView from './components/ProfileView';
+import BottomNav from './components/BottomNav';
 
 // Utils
 import { CATEGORY_CONFIG } from './utils/categories';
@@ -222,7 +223,7 @@ function App() {
           setSelectedYear={setSelectedYear}
         />
 
-        <main className="flex-1 p-4 md:p-8 overflow-y-auto relative">
+        <main className="flex-1 p-4 md:p-8 pb-24 md:pb-8 overflow-y-auto relative">
           {activeMenu === 'Dashboard' && (
             <Dashboard 
               currentBalance={currentBalance}
@@ -253,7 +254,7 @@ function App() {
             <SavingsView savingsGoals={savingsGoals} user={user} />
           )}
           {activeMenu === 'Profil' && (
-            <ProfileView user={user} />
+            <ProfileView user={user} theme={theme} setTheme={setTheme} />
           )}
         </main>
       </div>
@@ -302,6 +303,9 @@ function App() {
           </div>
         </div>
       )}
+
+      {/* BOTTOM NAVIGATION (Mobile Only) */}
+      <BottomNav activeMenu={activeMenu} setActiveMenu={setActiveMenu} />
     </div>
   );
 }
