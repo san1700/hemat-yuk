@@ -1,8 +1,164 @@
-import React, { useState } from 'react';
-import { ArrowUpRight, Trash2 } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { ArrowUpRight, Trash2, Brain, TrendingUp, TrendingDown, Shield } from 'lucide-react';
 import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area, Legend } from 'recharts';
+import { calculateFinancialScore } from '../utils/sawCalculator';
 
-function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudget, setMonthlyBudget, dynamicDistribusi, transactions, allTransactions, selectedMonth, selectedYear, setActiveMenu, handleDeleteTransaction }) {
+// ============================================================
+// SPEEDOMETER GAUGE COMPONENT (SVG)
+// ============================================================
+function SpeedometerGauge({ score, status }) {
+  // Gauge parameters
+  const centerX = 100;
+  const centerY = 95;
+  const radius = 75;
+  const startAngle = 180; // Left (π)
+  const endAngle = 0;     // Right (0)
+  const totalArc = 180;   // Degrees of arc
+
+  // Convert score (0-100) to angle
+  const scoreAngle = startAngle - (score / 100) * totalArc;
+  const scoreRad = (scoreAngle * Math.PI) / 180;
+
+  // Needle endpoint
+  const needleLength = radius - 10;
+  const needleX = centerX + needleLength * Math.cos(scoreRad);
+  const needleY = centerY - needleLength * Math.sin(scoreRad);
+
+  // Arc helper
+  const polarToCartesian = (cx, cy, r, angleDeg) => {
+    const rad = (angleDeg * Math.PI) / 180;
+    return {
+      x: cx + r * Math.cos(rad),
+      y: cy - r * Math.sin(rad),
+    };
+  };
+
+  const describeArc = (cx, cy, r, startAng, endAng) => {
+    const start = polarToCartesian(cx, cy, r, startAng);
+    const end = polarToCartesian(cx, cy, r, endAng);
+    const largeArc = Math.abs(startAng - endAng) > 180 ? 1 : 0;
+    // Arc goes clockwise (sweep=0) for our coordinate system
+    return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+  };
+
+  // Tick marks
+  const ticks = [0, 20, 40, 60, 80, 100];
+
+  return (
+    <div className="relative flex flex-col items-center">
+      <svg viewBox="0 0 200 120" className="w-full max-w-[200px]">
+        <defs>
+          <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#ef4444" />
+            <stop offset="35%" stopColor="#f59e0b" />
+            <stop offset="65%" stopColor="#22c55e" />
+            <stop offset="100%" stopColor="#10b981" />
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="2" result="coloredBlur"/>
+            <feMerge>
+              <feMergeNode in="coloredBlur"/>
+              <feMergeNode in="SourceGraphic"/>
+            </feMerge>
+          </filter>
+        </defs>
+
+        {/* Background arc */}
+        <path
+          d={describeArc(centerX, centerY, radius, 180, 0)}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="12"
+          strokeLinecap="round"
+          className="text-slate-100 dark:text-slate-800/50"
+        />
+
+        {/* Colored arc (gradient) */}
+        <path
+          d={describeArc(centerX, centerY, radius, 180, 0)}
+          fill="none"
+          stroke="url(#gaugeGradient)"
+          strokeWidth="12"
+          strokeLinecap="round"
+          opacity="0.3"
+        />
+
+        {/* Active arc up to score */}
+        {score > 0 && (
+          <path
+            d={describeArc(centerX, centerY, radius, 180, 180 - (score / 100) * 180)}
+            fill="none"
+            stroke={status.color}
+            strokeWidth="12"
+            strokeLinecap="round"
+            filter="url(#glow)"
+            style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+          />
+        )}
+
+        {/* Tick marks */}
+        {ticks.map(tick => {
+          const angle = 180 - (tick / 100) * 180;
+          const inner = polarToCartesian(centerX, centerY, radius - 8, angle);
+          const outer = polarToCartesian(centerX, centerY, radius + 2, angle);
+          const labelPos = polarToCartesian(centerX, centerY, radius + 14, angle);
+          return (
+            <g key={tick}>
+              <line
+                x1={inner.x} y1={inner.y}
+                x2={outer.x} y2={outer.y}
+                stroke="currentColor"
+                strokeWidth="1.5"
+                className="text-slate-300 dark:text-slate-600"
+              />
+              <text
+                x={labelPos.x} y={labelPos.y}
+                textAnchor="middle"
+                dominantBaseline="central"
+                className="text-slate-400 dark:text-slate-500"
+                style={{ fontSize: '7px', fontWeight: 700 }}
+              >
+                {tick}
+              </text>
+            </g>
+          );
+        })}
+
+        {/* Needle */}
+        <line
+          x1={centerX}
+          y1={centerY}
+          x2={needleX}
+          y2={needleY}
+          stroke={status.color}
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          style={{ transition: 'all 1.5s cubic-bezier(0.4, 0, 0.2, 1)' }}
+        />
+        
+        {/* Needle center dot */}
+        <circle cx={centerX} cy={centerY} r="5" fill={status.color} style={{ transition: 'fill 1s ease' }} />
+        <circle cx={centerX} cy={centerY} r="2.5" fill="white" />
+      </svg>
+
+      {/* Score Number */}
+      <div className="text-center -mt-3">
+        <p className="text-3xl font-bold tracking-tight" style={{ color: status.color, transition: 'color 1s ease' }}>
+          {score}
+        </p>
+        <p className="text-[10px] font-bold tracking-[0.2em] uppercase mt-0.5" style={{ color: status.color }}>
+          {status.emoji} {status.label}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+
+// ============================================================
+// MAIN DASHBOARD COMPONENT
+// ============================================================
+function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudget, setMonthlyBudget, dynamicDistribusi, transactions, allTransactions, selectedMonth, selectedYear, setActiveMenu, handleDeleteTransaction, invisibleSpending, remainingDays }) {
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
   const [tempBudget, setTempBudget] = useState(monthlyBudget.toString());
   const [chartFilter, setChartFilter] = useState('Bulanan'); // Harian, Mingguan, Bulanan, Tahunan
@@ -16,6 +172,19 @@ function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudge
     const val = parseInt(amountStr.toString().replace(/[^0-9]/g, ''), 10) || 0;
     return isExpense ? -val : val;
   };
+
+  // ============================================================
+  // SAW CALCULATION
+  // ============================================================
+  const financialScore = useMemo(() => {
+    return calculateFinancialScore({
+      monthlyIncome,
+      monthlyExpense,
+      invisibleSpending: invisibleSpending || 0,
+      currentBalance,
+      remainingDays: remainingDays || 1,
+    });
+  }, [monthlyIncome, monthlyExpense, invisibleSpending, currentBalance, remainingDays]);
 
   // Generate Chart Data based on selected filter
   const generateChartData = () => {
@@ -97,9 +266,29 @@ function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudge
 
   const chartData = generateChartData();
 
+  // Breakdown bar component
+  const BreakdownBar = ({ label, value, normalized, detail, type, color }) => (
+    <div className="space-y-1.5">
+      <div className="flex justify-between items-center">
+        <div className="flex items-center gap-1.5">
+          {type === 'benefit' ? <TrendingUp size={11} className="text-emerald-500" /> : <TrendingDown size={11} className="text-rose-500" />}
+          <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 tracking-wider">{label}</span>
+        </div>
+        <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{detail}</span>
+      </div>
+      <div className="w-full bg-slate-100 dark:bg-slate-800/50 h-1.5 rounded-full overflow-hidden">
+        <div 
+          className="h-full rounded-full transition-all duration-1000"
+          style={{ width: `${Math.min(100, normalized * 100)}%`, backgroundColor: color }}
+        ></div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 mb-8 px-4 md:px-0">
+        {/* TOTAL SALDO */}
         <div className="lg:col-span-3 bg-blue-600 dark:bg-gradient-to-br dark:from-blue-900/60 dark:to-slate-900/80 dark:border dark:border-white/10 rounded-[24px] p-6 shadow-xl shadow-blue-600/20 dark:shadow-none animate-fade-in-up opacity-0 relative overflow-hidden">
           {/* Decorative Blob */}
           <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500 dark:bg-blue-700/30 rounded-full mix-blend-multiply filter blur-xl opacity-60"></div>
@@ -122,6 +311,7 @@ function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudge
           </div>
         </div>
 
+        {/* CHART */}
         <div className="lg:col-span-6 bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-white/5 p-5 md:p-6 rounded-[24px] shadow-sm animate-fade-in-up opacity-0 delay-100 flex flex-col">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-3">
             <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight capitalize">Savings & Expenditure</h3>
@@ -167,7 +357,68 @@ function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudge
           </div>
         </div>
 
-        <div className="lg:col-span-3 bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-white/5 p-6 rounded-[24px] shadow-sm flex flex-col justify-center animate-fade-in-up opacity-0 delay-200">
+        {/* SKOR FINANSIAL AI (SAW) — Menggantikan Anggaran Bulanan */}
+        <div className="lg:col-span-3 bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-white/5 p-6 rounded-[24px] shadow-sm flex flex-col justify-between animate-fade-in-up opacity-0 delay-200">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="w-6 h-6 bg-gradient-to-br from-violet-500 to-blue-600 rounded-lg flex items-center justify-center">
+              <Brain size={14} className="text-white" />
+            </div>
+            <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 capitalize tracking-widest">Skor Finansial AI</h4>
+          </div>
+
+          {financialScore.hasData ? (
+            <>
+              <SpeedometerGauge score={financialScore.score} status={financialScore.status} />
+              
+              {/* Breakdown */}
+              <div className="mt-4 pt-4 border-t border-slate-50 dark:border-white/5 space-y-3">
+                <BreakdownBar 
+                  label={financialScore.breakdown.savingsRatio.label}
+                  value={financialScore.breakdown.savingsRatio.raw}
+                  normalized={financialScore.breakdown.savingsRatio.normalized}
+                  detail={financialScore.breakdown.savingsRatio.detail}
+                  type={financialScore.breakdown.savingsRatio.type}
+                  color="#10b981"
+                />
+                <BreakdownBar 
+                  label={financialScore.breakdown.invisibleSpending.label}
+                  value={financialScore.breakdown.invisibleSpending.raw}
+                  normalized={financialScore.breakdown.invisibleSpending.normalized}
+                  detail={financialScore.breakdown.invisibleSpending.detail}
+                  type={financialScore.breakdown.invisibleSpending.type}
+                  color="#f59e0b"
+                />
+                <BreakdownBar 
+                  label={financialScore.breakdown.safeBalance.label}
+                  value={financialScore.breakdown.safeBalance.raw}
+                  normalized={financialScore.breakdown.safeBalance.normalized}
+                  detail={financialScore.breakdown.safeBalance.detail}
+                  type={financialScore.breakdown.safeBalance.type}
+                  color="#3b82f6"
+                />
+              </div>
+
+              {/* Status Message */}
+              <div className="mt-3 p-3 rounded-xl text-center" style={{ backgroundColor: financialScore.status.bgColor }}>
+                <p className="text-[10px] font-bold leading-relaxed" style={{ color: financialScore.status.color }}>
+                  {financialScore.status.description}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center text-center py-4">
+              <Shield size={32} className="text-slate-200 dark:text-slate-700 mb-3" />
+              <p className="text-xs text-slate-400 dark:text-slate-500 font-bold">Belum ada data transaksi</p>
+              <p className="text-[10px] text-slate-300 dark:text-slate-600 mt-1">Tambah pemasukan & pengeluaran untuk melihat skor</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 pb-20 px-4 md:px-0">
+        
+        {/* ANGGARAN BULANAN (Dipindah ke row 2, kolom kiri) */}
+        <div className="lg:col-span-4 bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-white/5 p-6 rounded-[24px] shadow-sm flex flex-col justify-center animate-fade-in-up opacity-0 delay-250">
           <div className="flex justify-between items-center mb-4">
             <h4 className="text-[10px] font-bold text-slate-400 dark:text-slate-500 capitalize tracking-widest">Anggaran Bulanan</h4>
             <button onClick={() => {
@@ -177,7 +428,7 @@ function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudge
           </div>
           <div className="relative w-24 h-24 md:w-28 md:h-28 mx-auto mb-4">
             <svg viewBox="0 0 100 100" className="w-full h-full transform -rotate-90">
-              <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100" />
+              <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-slate-100 dark:text-slate-800" />
               <circle cx="50" cy="50" r="45" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray="282.7" strokeDashoffset={282.7 - (282.7 * cappedPercentage) / 100} className={isOverBudget ? "text-rose-500" : "text-blue-500"} style={{ transition: 'stroke-dashoffset 0.5s ease-in-out' }} />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center flex-col">
@@ -189,11 +440,8 @@ function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudge
             <br /><span className="text-[8px] opacity-70">dari Rp {monthlyBudget.toLocaleString('id-ID')}</span>
           </p>
         </div>
-      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 pb-20 px-4 md:px-0">
-        
-        {/* TRANSAKSI TERAKHIR (Sebelah Kiri) */}
+        {/* TRANSAKSI TERAKHIR */}
         <div className="lg:col-span-8 bg-white dark:bg-[#0f172a] border border-slate-100 dark:border-white/5 p-5 md:p-8 rounded-[32px] shadow-sm animate-fade-in-up opacity-0 delay-300">
           <div className="flex justify-between items-center mb-6 md:mb-8">
             <h3 className="text-lg md:text-xl font-bold text-slate-900 dark:text-white capitalize tracking-tight">Transaksi Terakhir</h3>
@@ -248,57 +496,57 @@ function Dashboard({ currentBalance, monthlyIncome, monthlyExpense, monthlyBudge
           </div>
         </div>
 
-        {/* DISTRIBUSI KATEGORI (Sebelah Kanan) */}
-        <div className="lg:col-span-4 bg-blue-600 dark:bg-gradient-to-br dark:from-blue-900/60 dark:to-slate-900/80 border-none dark:border dark:border-white/10 p-6 md:p-8 rounded-[32px] shadow-xl shadow-blue-600/20 dark:shadow-none animate-fade-in-up opacity-0 delay-400 relative overflow-hidden flex flex-col">
-          {/* Decorative Blobs to match Total Saldo */}
-          <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500 dark:bg-blue-700/30 rounded-full mix-blend-multiply filter blur-xl opacity-60"></div>
-          
-          <h3 className="text-base md:text-lg font-bold text-white capitalize tracking-tight mb-4 relative z-10">Distribusi Kategori</h3>
-          
-          <div className="h-[180px] w-full mt-2 relative z-10">
-            {dynamicDistribusi.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={dynamicDistribusi} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorCategory" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" className="opacity-10" />
-                  <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#bfdbfe', fontSize: 10, fontWeight: 600 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fill: '#bfdbfe', fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '16px', color: '#1e293b', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '12px' }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
-                    labelStyle={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', textTransform: 'capitalize', letterSpacing: '0.05em' }}
-                    formatter={(value) => [`${value.toFixed(1)}%`, 'Porsi']}
-                  />
-                  <Area type="monotone" dataKey="value" name="Porsi" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorCategory)" activeDot={{ r: 6, fill: '#38bdf8', stroke: '#fff', strokeWidth: 2 }} />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="w-full h-full min-h-[150px] flex items-center justify-center text-blue-200 text-xs font-bold">Belum ada pengeluaran</div>
-            )}
-          </div>
-
-          {/* Rincian Nominal */}
-          {dynamicDistribusi.length > 0 && (
-            <div className="mt-6 pt-5 border-t border-white/10 grid grid-cols-2 gap-y-4 gap-x-2 relative z-10">
-              {dynamicDistribusi.map((item, i) => (
-                <div key={i} className="flex flex-col">
-                  <div className="flex items-center gap-2 mb-1">
-                    <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
-                    <span className="text-[10px] text-blue-100 font-bold capitalize tracking-wider truncate">{item.name}</span>
-                  </div>
-                  <span className="text-xs md:text-sm font-bold text-white pl-4">Rp {item.amount.toLocaleString('id-ID')}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
       </div>
+
+      {/* DISTRIBUSI KATEGORI — Full width row */}
+      {dynamicDistribusi.length > 0 && (
+        <div className="px-4 md:px-0 -mt-14 pb-20">
+          <div className="bg-blue-600 dark:bg-gradient-to-br dark:from-blue-900/60 dark:to-slate-900/80 border-none dark:border dark:border-white/10 p-6 md:p-8 rounded-[32px] shadow-xl shadow-blue-600/20 dark:shadow-none animate-fade-in-up opacity-0 delay-400 relative overflow-hidden">
+            {/* Decorative Blobs */}
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-blue-500 dark:bg-blue-700/30 rounded-full mix-blend-multiply filter blur-xl opacity-60"></div>
+            
+            <h3 className="text-base md:text-lg font-bold text-white capitalize tracking-tight mb-4 relative z-10">Distribusi Kategori</h3>
+            
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 relative z-10">
+              <div className="h-[180px] w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={dynamicDistribusi} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorCategory" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#38bdf8" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff" className="opacity-10" />
+                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#bfdbfe', fontSize: 10, fontWeight: 600 }} dy={10} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fill: '#bfdbfe', fontSize: 10 }} tickFormatter={(val) => `${val}%`} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#ffffff', borderColor: '#e2e8f0', borderRadius: '16px', color: '#1e293b', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)', padding: '12px' }}
+                      itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                      labelStyle={{ fontSize: '10px', color: '#64748b', marginBottom: '4px', textTransform: 'capitalize', letterSpacing: '0.05em' }}
+                      formatter={(value) => [`${value.toFixed(1)}%`, 'Porsi']}
+                    />
+                    <Area type="monotone" dataKey="value" name="Porsi" stroke="#38bdf8" strokeWidth={3} fillOpacity={1} fill="url(#colorCategory)" activeDot={{ r: 6, fill: '#38bdf8', stroke: '#fff', strokeWidth: 2 }} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Rincian Nominal */}
+              <div className="grid grid-cols-2 gap-y-4 gap-x-2">
+                {dynamicDistribusi.map((item, i) => (
+                  <div key={i} className="flex flex-col">
+                    <div className="flex items-center gap-2 mb-1">
+                      <div className="w-2.5 h-2.5 rounded-full shadow-sm" style={{ backgroundColor: item.color }}></div>
+                      <span className="text-[10px] text-blue-100 font-bold capitalize tracking-wider truncate">{item.name}</span>
+                    </div>
+                    <span className="text-xs md:text-sm font-bold text-white pl-4">Rp {item.amount.toLocaleString('id-ID')}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {isBudgetModalOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4 animate-fade-in">

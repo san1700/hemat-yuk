@@ -18,6 +18,7 @@ import BottomNav from './components/BottomNav';
 
 // Utils
 import { CATEGORY_CONFIG } from './utils/categories';
+import { INVISIBLE_CATEGORIES } from './utils/sawCalculator';
 
 // Removed hardcoded dataProyeksi
 
@@ -98,11 +99,26 @@ function App() {
 
   let monthlyIncome = 0;
   let monthlyExpense = 0;
+  let invisibleSpending = 0;
   activeTransactions.forEach(t => {
     const val = parseAmount(t.a);
-    if (val < 0) monthlyExpense += Math.abs(val);
-    else monthlyIncome += val;
+    if (val < 0) {
+      monthlyExpense += Math.abs(val);
+      // Hitung invisible spending (Coffee, Lifestyle, Snacks)
+      if (INVISIBLE_CATEGORIES.includes(t.c)) {
+        invisibleSpending += Math.abs(val);
+      }
+    } else {
+      monthlyIncome += val;
+    }
   });
+
+  // Hitung sisa hari dalam bulan ini
+  const daysInCurrentMonth = new Date(selectedYear, selectedMonth + 1, 0).getDate();
+  const isViewingCurrentMonth = selectedMonth === new Date().getMonth() && selectedYear === new Date().getFullYear();
+  const remainingDays = isViewingCurrentMonth
+    ? Math.max(1, daysInCurrentMonth - new Date().getDate() + 1)
+    : daysInCurrentMonth;
 
   const calculateDistribution = () => {
     const dist = {};
@@ -238,6 +254,8 @@ function App() {
               selectedYear={selectedYear}
               setActiveMenu={setActiveMenu}
               handleDeleteTransaction={handleDeleteTransaction}
+              invisibleSpending={invisibleSpending}
+              remainingDays={remainingDays}
             />
           )}
           {activeMenu === 'Transactions' && (
@@ -251,7 +269,7 @@ function App() {
             <AIAnalysisView transactions={activeTransactions} />
           )}
           {activeMenu === 'Savings Goals' && (
-            <SavingsView savingsGoals={savingsGoals} user={user} />
+            <SavingsView savingsGoals={savingsGoals} user={user} monthlyIncome={monthlyIncome} monthlyExpense={monthlyExpense} />
           )}
           {activeMenu === 'Profil' && (
             <ProfileView user={user} theme={theme} setTheme={setTheme} />
