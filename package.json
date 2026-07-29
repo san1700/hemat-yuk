@@ -10,7 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^8.4.1",
+    "@capacitor/android": "^8.4.2",
     "@capacitor/core": "^8.4.1",
     "@google/generative-ai": "^0.24.1",
     "@tailwindcss/postcss": "^4.3.0",
